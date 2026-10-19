@@ -5,11 +5,13 @@
  */
 import * as THREE from 'three';
 import { BuriedItem } from './snowGrid.ts';
+import { ObstacleCollider } from './collision.ts';
 
 export class VillageEnvironment {
   public group: THREE.Group;
   public chimneySmokes: { mesh: THREE.Mesh; initialY: number; speed: number }[] = [];
   public treasureMeshes: Map<string, THREE.Group> = new Map();
+  public colliders: ObstacleCollider[] = [];
 
   constructor(mapSize: number = 40) {
     this.group = new THREE.Group();
@@ -146,6 +148,17 @@ export class VillageEnvironment {
       houseGroup.add(smoke);
       this.chimneySmokes.push({ mesh: smoke, initialY: initY, speed: 0.8 + Math.random() * 0.4 });
 
+      // Solid Box Collider for Chalet / House
+      this.colliders.push({
+        type: 'box',
+        x: pos.x,
+        z: pos.z,
+        halfWidth: 2.1 * scale,
+        halfDepth: 1.85 * scale,
+        rotY: pos.rotY,
+        label: pos.isBakery ? 'bakery' : 'chalet',
+      });
+
       this.group.add(houseGroup);
     });
 
@@ -206,6 +219,15 @@ export class VillageEnvironment {
 
     this.group.add(holidayTreeGroup);
 
+    // Solid Circle Collider for Great Holiday Tree
+    this.colliders.push({
+      type: 'circle',
+      x: 0,
+      z: 0,
+      radius: 1.5,
+      label: 'holiday_tree',
+    });
+
     // 3. Ambient Pine Trees around Village Perimeters
     const pinePositions: { x: number; z: number; scale: number }[] = [];
     for (let i = 0; i < 45; i++) {
@@ -240,6 +262,15 @@ export class VillageEnvironment {
       const tree = this.createPineTree(p.scale, chaletWoodMat, pineFoliageMat, pineSnowMat);
       tree.position.set(p.x, 0, p.z);
       this.group.add(tree);
+
+      // Solid Circle Collider for Pine Tree Trunk
+      this.colliders.push({
+        type: 'circle',
+        x: p.x,
+        z: p.z,
+        radius: 0.85 * p.scale,
+        label: 'pine_tree',
+      });
     });
 
     // 4. Street Lamps with Warm Point Lights
@@ -259,6 +290,15 @@ export class VillageEnvironment {
       lamp.position.set(lp.x, 0, lp.z);
       this.group.add(lamp);
 
+      // Solid Circle Collider for Wooden Stick / Street Lamp Post
+      this.colliders.push({
+        type: 'circle',
+        x: lp.x,
+        z: lp.z,
+        radius: 0.38,
+        label: 'street_lamp',
+      });
+
       // Warm subtle point light
       const pointLight = new THREE.PointLight(0xfef08a, 1.4, 7);
       pointLight.position.set(lp.x, 2.8, lp.z);
@@ -277,6 +317,15 @@ export class VillageEnvironment {
     const bank = new THREE.Mesh(bankGeo, snowRoofMat);
     bank.position.set(-18, 0.2, -7);
     this.group.add(bank);
+
+    // Solid Circle Collider for Frozen Pond
+    this.colliders.push({
+      type: 'circle',
+      x: -18,
+      z: -7,
+      radius: 5.6,
+      label: 'frozen_pond',
+    });
 
     // 6. Natural Perimeter Mountain Silhouettes
     const mountainMat = new THREE.MeshStandardMaterial({

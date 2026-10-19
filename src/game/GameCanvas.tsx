@@ -373,9 +373,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
 
-      // Vehicle physics update
+      // Vehicle physics update with solid obstacle colliders
       vehicle.applyUpgrades(stateRef.current.upgrades);
-      vehicle.update(dt, { throttle, steer, boost }, isPlowingSnow, mapSize);
+      const { hasBumped } = vehicle.update(
+        dt,
+        { throttle, steer, boost },
+        isPlowingSnow,
+        mapSize,
+        village.colliders
+      );
+
+      if (hasBumped) {
+        soundManager.playBumpSound();
+        particles.emitSnowSpray(vehicle.position, vehicle.heading, 1.8, 2, 0.7);
+      }
 
       // Sound update: boost whoosh
       if (vehicle.isBoosting && boost) {

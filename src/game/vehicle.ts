@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { PlayerUpgrades, getUpgradeValue } from './rules.ts';
+import { ObstacleCollider, resolveVehicleCollisions } from './collision.ts';
 
 export class SnowplowVehicle {
   public group: THREE.Group;
@@ -13,6 +14,7 @@ export class SnowplowVehicle {
   public heading: number = 0; // in radians (0 = facing +X)
   public steeringAngle: number = 0; // -maxSteer to +maxSteer
   public currentSpeed: number = 0; // forward speed in m/s
+  public bumpCooldown: number = 0;
 
   // Visual sub-components
   private chassisMesh!: THREE.Mesh;
@@ -311,8 +313,9 @@ export class SnowplowVehicle {
     dt: number,
     inputs: { throttle: number; steer: number; boost: boolean },
     isPlowingSnow: boolean,
-    mapBounds: number
-  ) {
+    mapBounds: number,
+    obstacles: ObstacleCollider[] = []
+  ): { hasBumped: boolean } {
     // Boost activation
     if (inputs.boost && this.boostTimeRemaining > 0 && inputs.throttle > 0) {
       this.isBoosting = true;
@@ -360,6 +363,40 @@ export class SnowplowVehicle {
     this.position.x += this.velocity.x * dt;
     this.position.z += this.velocity.z * dt;
 
+    // Solid Obstacle Collision Resolution (trees, houses, street lamp posts, pond)
+    let hasBumped = false;
+    if (obstacles && obstacles.length > 0) {
+      const col = resolveVehicleCollisions(
+        { x: this.position.x, z: this.position.z },
+        this.heading,
+        obstacles
+      );
+
+      if (col.hasCollision) {
+        this.position.x = col.newX;
+        this.position.z = col.newZ;
+
+        // Dampen velocity / elastic recoil
+        const dot = forwardX * col.averageNormalX + forwardZ * col.averageNormalZ;
+        if (dot < 0) {
+          // Facing directly into wall
+          this.currentSpeed = -this.currentSpeed * 0.22;
+        } else {
+          // Glancing blow along wall
+          this.currentSpeed *= 0.65;
+        }
+
+        if (this.bumpCooldown <= 0) {
+          this.bumpCooldown = 0.25;
+          hasBumped = true;
+        }
+      }
+    }
+
+    if (this.bumpCooldown > 0) {
+      this.bumpCooldown -= dt;
+    }
+
     // Map bounds clamp (soft bounce against boundary snowbanks)
     const bound = mapBounds - 2.5;
     if (this.position.x > bound) {
@@ -404,6 +441,8 @@ export class SnowplowVehicle {
     this.group.rotation.y = this.heading;
     this.group.rotation.x = this.bodyPitch;
     this.group.rotation.z = this.bodyRoll;
+
+    return { hasBumped };
   }
 
   /**
