@@ -1,0 +1,6 @@
+{
+  "name": "Frostplow - Cozy 3D Snowplow Adventure",
+  "description": "A cozy 3D isometric snow-plowing game with vehicle upgrades, combo multipliers, buried treasures, and procedural synth sound effects.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
